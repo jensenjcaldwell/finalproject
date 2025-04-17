@@ -20,8 +20,8 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
  
 # Screen information
-SCREEN_WIDTH = 600
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1900
+SCREEN_HEIGHT = 1000
  
 DISPLAYSURF = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 DISPLAYSURF.fill(WHITE)
@@ -70,15 +70,13 @@ class Player(GameObject, pygame.sprite.Sprite):
         surface.blit(self.image, self.rect)   
 
 class Obstacle(GameObject, pygame.sprite.Sprite):
-    def __init__(self, name, image, x = random.randint(20, SCREEN_WIDTH - 20), y = 0, present=False, ticker=10):
+    def __init__(self, name, image, x=None, y=0, present=False, ticker=10):
         pygame.sprite.Sprite.__init__(self)
-        self.x = x
+        self.x = x if x is not None else random.randint(20, SCREEN_WIDTH - 20)
         self.y = y
         self.name = name
         self.image = image
         self.rect = self.image.get_rect()
-        self.present = present
-        
         self.present = present
         self.ticker = ticker
 
@@ -88,8 +86,9 @@ class Obstacle(GameObject, pygame.sprite.Sprite):
             if self.rect.top > SCREEN_HEIGHT:
                 self.rect.bottom = 0
                 self.present = False
-                self.rect.center = (random.randint(20, SCREEN_WIDTH - 20), 0)
-                self.ticker = 1 * random.randint(1, 20) / speed  # Reset the ticker to a random value between 100 and 1000
+                obstacles.remove(self)
+
+
 
     def draw(self, surface, speed):
         if self.present:
@@ -105,38 +104,46 @@ class tree(Obstacle):
     def __init__(self):
         image = pygame.image.load("assets/tree.png")
         super().__init__("tree", image)
-        self.rect.center = (random.randint(20, SCREEN_WIDTH - 20), 0)
         self.image = pygame.transform.scale(self.image, (50, 50))
         self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
+
 
 class cone(Obstacle):
     def __init__(self):
         image = pygame.image.load("assets/cone.png")
         super().__init__("cone", image)
-        self.rect.center = (random.randint(20, SCREEN_WIDTH - 20), 0)
         self.image = pygame.transform.scale(self.image, (50, 50))
         self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
 
 class rock(Obstacle):
     def __init__(self):
         image = pygame.image.load("assets/rock.png")
         super().__init__("rock", image)
-        self.rect.center = (random.randint(20, SCREEN_WIDTH - 20), 0)
         self.image = pygame.transform.scale(self.image, (50, 50))
         self.rect = self.image.get_rect()
+        self.rect.center = (self.x, self.y)
 
 
 
 
 player = Player()
-obstacles = pygame.sprite.Group(tree(), cone(), rock())
+obstacles = pygame.sprite.Group()
 
 
+start_time = time.time()
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
+    if time.time() - start_time > player.speed:
+        if player.speed < 10:
+            player.speed += 1
+    if len(obstacles) < player.speed:
+        if random.randint(0, 50) * player.speed > 9:
+            obstacles.add([tree(), cone(), rock()][random.randint(0, 2)])
     for obstacle in obstacles:
         obstacle.update(player.speed)
     player.update()
