@@ -2,203 +2,145 @@ import pygame
 import random 
 import time
 import sys
-from abc import ABC, abstractmethod
-from pygame.locals import *
+from pygame.locals import QUIT, K_LEFT, K_RIGHT
+from game_classes import Player, tree, cone, rock, obstacles
+from game_config import SCREEN_WIDTH, SCREEN_HEIGHT
 
-
-name = input("Please enter your name: ")
-if name == "":
-    print("No name entered, using default name: Player")
-    name = "Player"
-
+# Initialize Pygame
 pygame.init()
  
+# Set the frame rate
 FPS = 60
 FramePerSec = pygame.time.Clock()
- 
+
 # Predefined some colors
 BLUE  = (0, 0, 255)
 RED   = (255, 0, 0)
-GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
- 
-# Screen information
-SCREEN_WIDTH = 600
-SCREEN_HEIGHT = 900\
 
+
+# Font for rendering text
 font = pygame.font.SysFont(None, 30)
 
-DISPLAYSURF = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
-DISPLAYSURF.fill(WHITE)
+# Initialize the display surface
+DISPLAYSURF = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+DISPLAYSURF.fill(BLACK)
 pygame.display.set_caption("Game")
 
-#Define the player class
-# This class is used to create the player object
-
-class GameObject(ABC, pygame.sprite.Sprite):
-    def __init__(self, name, radius=10):
-        self.name = name
-        self.radius = radius
-
-    @abstractmethod
-    def update(self):
-        pass
-    @abstractmethod
-    def draw(self, surface):
-        pass
-
-class Player(GameObject, pygame.sprite.Sprite):
-    def __init__(self, speed=5):
-        pygame.sprite.Sprite.__init__(self)
-        GameObject.__init__(self, "Player")
-        self.image = pygame.image.load("assets\car.png")
-        self.image = pygame.transform.scale(self.image, (150, 150))
-        self.rect = self.image.get_rect()
-        self.rect.center = (SCREEN_WIDTH * 0.5, SCREEN_HEIGHT * 0.88)
-        self.speed = speed
-   
-    def update(self):
-        pressed_keys = pygame.key.get_pressed()
-       #if pressed_keys[K_UP]:
-            #self.rect.move_ip(0, -5)
-       #if pressed_keys[K_DOWN]:
-            #self.rect.move_ip(0,5)
-         
-        if self.rect.left >= 0:
-              if pressed_keys[K_LEFT]:
-                  self.rect.move_ip(-5, 0)
-        if self.rect.right < SCREEN_WIDTH:        
-              if pressed_keys[K_RIGHT]:
-                  self.rect.move_ip(5, 0)
- 
-    def draw(self, surface):
-        surface.blit(self.image, self.rect)  
-    
-    def save_score(self,score,name):
-        with open("scores.txt", "a+") as f:
-            f.seek(0)  # Move to the start of the file to read existing scores
-            lines = f.readlines()
-            f.write(f"{name}: {score}\n")
-            print("Score saved!")
-            lines.append(f"{name}: {score}\n")
-            lines.sort(key=lambda x: int(x.split(": ")[1]), reverse=True)
-        print("Top 10 scores:")
-        for line in lines[:10]:
-            print(line.strip())
-
-class Obstacle(GameObject, pygame.sprite.Sprite):
-    def __init__(self, name, image, x=None, y=0, present=False, ticker=10):
-        pygame.sprite.Sprite.__init__(self)
-        self.x = x if x is not None else random.randint(20, SCREEN_WIDTH - 20)
-        self.y = y
-        self.name = name
-        self.image = image
-        self.rect = self.image.get_rect()
-        self.present = present
-        self.ticker = ticker
-
-    def update(self,speed):
-        if self.present:
-            self.rect.move_ip(0, speed)
-            if self.rect.top > SCREEN_HEIGHT:
-                self.rect.bottom = 0
-                self.present = False
-                obstacles.remove(self)
-
-
-
-    def draw(self, surface, speed):
-        if self.present:
-            surface.blit(self.image, self.rect)  
-        else:
-            if random.randint(0, 10) * speed >= self.ticker:
-                self.present = True
-            else:
-                self.ticker -= 1
-            
-
-class tree(Obstacle):
-    def __init__(self):
-        image = pygame.image.load("assets/tree.png")
-        super().__init__("tree", image)
-        self.image = pygame.transform.scale(self.image, (30, 30))
-        self.rect = self.image.get_rect()
-        self.rect.center = (self.x, self.y)
-
-
-class cone(Obstacle):
-    def __init__(self):
-        image = pygame.image.load("assets/cone.png")
-        super().__init__("cone", image)
-        self.image = pygame.transform.scale(self.image, (30, 30))
-        self.rect = self.image.get_rect()
-        self.rect.center = (self.x, self.y)
-
-class rock(Obstacle):
-    def __init__(self):
-        image = pygame.image.load("assets/rock.png")
-        super().__init__("rock", image)
-        self.image = pygame.transform.scale(self.image, (30, 30))
-        self.rect = self.image.get_rect()
-        self.rect.center = (self.x, self.y)
-
-
-
+# Initialize score display
 score_text = font.render("Score: ", True, BLACK)
 score_text_rect = score_text.get_rect()
 score_text_rect.topleft = (10, 10)
 
+# Initialize game over text
 end_score_text = font.render("Game Over", True, BLACK)
 end_score_text_rect = end_score_text.get_rect()
 end_score_text_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
 
-
+# Create the player object
 player = Player()
 
-obstacles = pygame.sprite.Group()
 
+
+# Initialize game variables
 start_time = time.time()
 score = 0
+
+# Main game loop
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
+    
+    # Increase player speed over time
     if time.time() - start_time > player.speed * 2:
         if player.speed < 20:
             player.speed += 1
+    
+    # Add new obstacles based on player speed
     if len(obstacles) < player.speed:
         if random.randint(0, 50) * player.speed > 249:
             obstacles.add([tree(), cone(), rock()][random.randint(0, 2)])
+    
+    # Update score
     score += player.speed
+    
+    # Update obstacles and player
     for obstacle in obstacles:
         obstacle.update(player.speed)
     player.update()
-    DISPLAYSURF.fill(WHITE)
+    
+    # Clear the screen
+    DISPLAYSURF.fill(BLACK)
+    
+    # Display the score
     DISPLAYSURF.blit(score_text, score_text_rect)
     score_text = font.render("Score: " + str(score), True, BLACK)
+    
+    # Draw obstacles and player
     for obstacle in obstacles:
         obstacle.draw(DISPLAYSURF, player.speed)
     player.draw(DISPLAYSURF)
+    
+    # Check for collisions
     for obstacle in obstacles:
         if pygame.sprite.collide_circle(player, obstacle):
+            # Handle game over
             DISPLAYSURF.fill(RED)
             pygame.display.update()
-        if pygame.sprite.collide_circle(player, obstacle):
             DISPLAYSURF.fill(RED)
-            end_score_text = font.render(f"Game Over!", True, BLACK)
+            end_score_text = font.render("Game Over!", True, BLACK)
             DISPLAYSURF.blit(score_text, score_text_rect)
             DISPLAYSURF.blit(end_score_text, end_score_text_rect)
             pygame.display.update()
             pygame.time.wait(2000)
+            
+            # Handle name input for saving score
+            input_active = True
+            name = ""
+            input_box = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 50, 200, 30)
+            color_inactive = pygame.Color('lightskyblue3')
+            color_active = pygame.Color('dodgerblue2')
+            color = color_inactive
+            font = pygame.font.Font(None, 32)
+            instruction_text = font.render("Enter your name and press Enter:", True, RED)
+            while input_active:
+                for event in pygame.event.get():
+                    if event.type == QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if input_box.collidepoint(event.pos):
+                            input_active = True
+                            color = color_active
+                        else:
+                            color = color_inactive
+                    if event.type == pygame.KEYDOWN:
+                        if input_active:
+                            if event.key == pygame.K_RETURN:
+                                input_active = False
+                                if not name.strip():
+                                    name = "Player"
+                            elif event.key == pygame.K_BACKSPACE:
+                                name = name[:-1]
+                            else:
+                                name += event.unicode
+                DISPLAYSURF.fill(WHITE)
+                DISPLAYSURF.blit(instruction_text, (SCREEN_WIDTH // 2 - instruction_text.get_width() // 2, SCREEN_HEIGHT // 2 - 50))
+                pygame.draw.rect(DISPLAYSURF, color, input_box, 2)
+                text_surface = font.render(name, True, BLACK)
+                DISPLAYSURF.blit(text_surface, (input_box.x + 5, input_box.y + 5))
+                input_box.w = max(200, text_surface.get_width() + 10)
+                pygame.display.flip()
+            
+            # Save the score and exit
             player.save_score(score, name)
             sys.exit()
             pygame.quit()
             break
+    
+    # Update the display
     pygame.display.update()
     FramePerSec.tick(FPS)
-
-
-
-    
