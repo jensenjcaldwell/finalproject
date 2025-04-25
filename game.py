@@ -6,6 +6,10 @@ from abc import ABC, abstractmethod
 from pygame.locals import *
 
 
+name = input("Please enter your name: ")
+if name == "":
+    print("No name entered, using default name: Player")
+    name = "Player"
 
 pygame.init()
  
@@ -20,9 +24,11 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
  
 # Screen information
-SCREEN_WIDTH = 1900
-SCREEN_HEIGHT = 1000
- 
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 900\
+
+font = pygame.font.SysFont(None, 30)
+
 DISPLAYSURF = pygame.display.set_mode((SCREEN_WIDTH,SCREEN_HEIGHT))
 DISPLAYSURF.fill(WHITE)
 pygame.display.set_caption("Game")
@@ -67,7 +73,19 @@ class Player(GameObject, pygame.sprite.Sprite):
                   self.rect.move_ip(5, 0)
  
     def draw(self, surface):
-        surface.blit(self.image, self.rect)   
+        surface.blit(self.image, self.rect)  
+    
+    def save_score(self,score,name):
+        with open("scores.txt", "a+") as f:
+            f.seek(0)  # Move to the start of the file to read existing scores
+            lines = f.readlines()
+            f.write(f"{name}: {score}\n")
+            print("Score saved!")
+            lines.append(f"{name}: {score}\n")
+            lines.sort(key=lambda x: int(x.split(": ")[1]), reverse=True)
+        print("Top 10 scores:")
+        for line in lines[:10]:
+            print(line.strip())
 
 class Obstacle(GameObject, pygame.sprite.Sprite):
     def __init__(self, name, image, x=None, y=0, present=False, ticker=10):
@@ -104,7 +122,7 @@ class tree(Obstacle):
     def __init__(self):
         image = pygame.image.load("assets/tree.png")
         super().__init__("tree", image)
-        self.image = pygame.transform.scale(self.image, (50, 50))
+        self.image = pygame.transform.scale(self.image, (30, 30))
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
 
@@ -113,7 +131,7 @@ class cone(Obstacle):
     def __init__(self):
         image = pygame.image.load("assets/cone.png")
         super().__init__("cone", image)
-        self.image = pygame.transform.scale(self.image, (50, 50))
+        self.image = pygame.transform.scale(self.image, (30, 30))
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
 
@@ -121,33 +139,45 @@ class rock(Obstacle):
     def __init__(self):
         image = pygame.image.load("assets/rock.png")
         super().__init__("rock", image)
-        self.image = pygame.transform.scale(self.image, (50, 50))
+        self.image = pygame.transform.scale(self.image, (30, 30))
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
 
 
 
+score_text = font.render("Score: ", True, BLACK)
+score_text_rect = score_text.get_rect()
+score_text_rect.topleft = (10, 10)
+
+end_score_text = font.render("Game Over", True, BLACK)
+end_score_text_rect = end_score_text.get_rect()
+end_score_text_rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+
 
 player = Player()
+
 obstacles = pygame.sprite.Group()
 
-
 start_time = time.time()
+score = 0
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
-    if time.time() - start_time > player.speed:
-        if player.speed < 10:
+    if time.time() - start_time > player.speed * 2:
+        if player.speed < 20:
             player.speed += 1
     if len(obstacles) < player.speed:
-        if random.randint(0, 50) * player.speed > 9:
+        if random.randint(0, 50) * player.speed > 249:
             obstacles.add([tree(), cone(), rock()][random.randint(0, 2)])
+    score += player.speed
     for obstacle in obstacles:
         obstacle.update(player.speed)
     player.update()
     DISPLAYSURF.fill(WHITE)
+    DISPLAYSURF.blit(score_text, score_text_rect)
+    score_text = font.render("Score: " + str(score), True, BLACK)
     for obstacle in obstacles:
         obstacle.draw(DISPLAYSURF, player.speed)
     player.draw(DISPLAYSURF)
@@ -157,9 +187,18 @@ while True:
             pygame.display.update()
         if pygame.sprite.collide_circle(player, obstacle):
             DISPLAYSURF.fill(RED)
+            end_score_text = font.render(f"Game Over!", True, BLACK)
+            DISPLAYSURF.blit(score_text, score_text_rect)
+            DISPLAYSURF.blit(end_score_text, end_score_text_rect)
+            pygame.display.update()
+            pygame.time.wait(2000)
+            player.save_score(score, name)
             sys.exit()
+            pygame.quit()
+            break
     pygame.display.update()
     FramePerSec.tick(FPS)
+
 
 
     
